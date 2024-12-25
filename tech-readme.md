@@ -7,7 +7,7 @@ psql postgres
 CREATE DATABASE botpress_logs;
 
 # Create a new user with a password
-CREATE USER botpress_user WITH PASSWORD 'your_secure_password';
+CREATE USER botpress_user WITH PASSWORD 'mypass';
 
 # Grant privileges to the user on the database
 GRANT ALL PRIVILEGES ON DATABASE botpress_logs TO botpress_user;
