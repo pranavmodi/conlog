@@ -48,12 +48,32 @@ class MessageLog(BaseModel):
     message: str
     metadata: Optional[dict] = None
 
-class MessageLogResponse(MessageLog):
+class MessageLogResponse(BaseModel):
     id: int
+    conversation_id: str
+    user_id: str
+    message: str
     timestamp: datetime
+    message_metadata: Optional[dict] = None
 
     class Config:
-        orm_mode = True
+        from_attributes = True
+        
+    @property
+    def metadata(self) -> Optional[dict]:
+        return self.message_metadata
+        
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "id": 1,
+                "conversation_id": "test-conv-1",
+                "user_id": "user-1",
+                "message": "Hello, bot!",
+                "timestamp": "2024-12-25T16:30:07.017816",
+                "metadata": {"source": "test"}
+            }
+        }
 
 # Dependency for database session
 async def get_db():
