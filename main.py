@@ -1,10 +1,10 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Depends
 from pydantic import BaseModel
 from datetime import datetime
 from typing import List, Optional
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from sqlalchemy.orm import sessionmaker, declarative_base
-from sqlalchemy import Column, Integer, String, DateTime, JSON
+from sqlalchemy import Column, Integer, String, DateTime, JSON, select
 import os
 from dotenv import load_dotenv
 
@@ -33,7 +33,7 @@ class ConversationLog(Base):
     user_id = Column(String, index=True, nullable=False)
     message = Column(String, nullable=False)
     timestamp = Column(DateTime, default=datetime.utcnow)
-    metadata = Column(JSON, nullable=True)
+    message_metadata = Column(JSON, nullable=True)
 
 # Pydantic models for request/response
 class MessageLog(BaseModel):
@@ -65,7 +65,7 @@ async def create_conversation_log(message_log: MessageLog, db: AsyncSession = De
             conversation_id=message_log.conversation_id,
             user_id=message_log.user_id,
             message=message_log.message,
-            metadata=message_log.metadata
+            message_metadata=message_log.metadata
         )
         db.add(db_log)
         await db.commit()
