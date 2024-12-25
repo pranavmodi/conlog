@@ -1,6 +1,5 @@
 conenv/
 .cursorrules
-.env
 .env.*
 
 .DS_Store
