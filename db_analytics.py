@@ -18,7 +18,7 @@ async def print_all_rows():
                 print(f"\nID: {log.id}")
                 print(f"Conversation ID: {log.conversation_id}")
                 print(f"User ID: {log.user_id}")
-                print(f"Message: {log.message}")
+                print(f"Transcript: {log.transcript}")
                 print(f"Timestamp: {log.timestamp}")
                 print(f"Metadata: {log.message_metadata}")
                 print("-" * 50)
