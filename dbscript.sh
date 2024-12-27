@@ -9,10 +9,25 @@ while getopts "d" opt; do
   esac
 done
 
-# Check if PostgreSQL is running
+# Detect OS
+OS="unknown"
+if [[ "$OSTYPE" == "darwin"* ]]; then
+    OS="macos"
+elif [[ -f /etc/centos-release ]]; then
+    OS="centos"
+else
+    echo "Unsupported operating system. This script supports macOS and CentOS."
+    exit 1
+fi
+
+# Check if PostgreSQL is running and start if needed
 if ! pg_isready > /dev/null 2>&1; then
     echo "Starting PostgreSQL service..."
-    brew services start postgresql@14
+    if [[ "$OS" == "macos" ]]; then
+        brew services start postgresql@14
+    elif [[ "$OS" == "centos" ]]; then
+        sudo systemctl start postgresql
+    fi
     sleep 5  # Wait for PostgreSQL to start
 fi
 
