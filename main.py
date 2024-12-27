@@ -36,23 +36,23 @@ class ConversationLog(Base):
 
     id = Column(Integer, primary_key=True)
     conversation_id = Column(String, index=True, nullable=False)
-    user_id = Column(String, index=True, nullable=False)
-    message = Column(String, nullable=False)
+    user_id = Column(String, index=True, nullable=True)
+    transcript = Column(String, nullable=False)
     timestamp = Column(DateTime, default=datetime.utcnow)
     message_metadata = Column(JSON, nullable=True)
 
 # Pydantic models for request/response
 class MessageLog(BaseModel):
     conversation_id: str
-    user_id: str
-    message: str
+    user_id: Optional[str] = None
+    transcript: str
     metadata: Optional[dict] = None
 
 class MessageLogResponse(BaseModel):
     id: int
     conversation_id: str
-    user_id: str
-    message: str
+    user_id: Optional[str] = None
+    transcript: str
     timestamp: datetime
     message_metadata: Optional[dict] = None
 
@@ -69,7 +69,7 @@ class MessageLogResponse(BaseModel):
                 "id": 1,
                 "conversation_id": "test-conv-1",
                 "user_id": "user-1",
-                "message": "Hello, bot!",
+                "transcript": "Hello, bot!",
                 "timestamp": "2024-12-25T16:30:07.017816",
                 "metadata": {"source": "test"}
             }
@@ -90,7 +90,7 @@ async def create_conversation_log(message_log: MessageLog, db: AsyncSession = De
         db_log = ConversationLog(
             conversation_id=message_log.conversation_id,
             user_id=message_log.user_id,
-            message=message_log.message,
+            transcript=message_log.transcript,
             message_metadata=message_log.metadata
         )
         db.add(db_log)
