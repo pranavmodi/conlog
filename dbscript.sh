@@ -23,14 +23,25 @@ fi
 # Set PostgreSQL service and paths for CentOS
 if [[ "$OS" == "centos" ]]; then
     PG_SERVICE="postgresql-14"
-    export PGDATA="/var/lib/pgsql/14/data"
-    export PATH="/usr/pgsql-14/bin:$PATH"
+    # Change to a directory where we have access
+    cd /tmp
+    
+    # Use full paths for PostgreSQL commands
+    PG_ISREADY="/usr/pgsql-14/bin/pg_isready"
+    PSQL="/usr/pgsql-14/bin/psql"
+    
+    # Set PGDATA only if we have permission to access it
+    if sudo test -d "/var/lib/pgsql/14/data"; then
+        export PGDATA="/var/lib/pgsql/14/data"
+    fi
 else
     PG_SERVICE="postgresql@14"
+    PG_ISREADY="pg_isready"
+    PSQL="psql"
 fi
 
 # Check if PostgreSQL is running
-if ! sudo -u postgres pg_isready -q; then
+if ! sudo -u postgres $PG_ISREADY -q; then
     echo "Starting PostgreSQL service $PG_SERVICE..."
     if [[ "$OS" == "macos" ]]; then
         brew services start $PG_SERVICE
@@ -81,7 +92,7 @@ if [[ "$OS" == "centos" ]]; then
     echo "Setting up database as postgres user..."
     
     # Create user and database
-    sudo -u postgres psql -v ON_ERROR_STOP=1 <<EOF
+    sudo -u postgres $PSQL -v ON_ERROR_STOP=1 <<EOF
 -- Create user if not exists
 DO \$\$
 BEGIN
@@ -105,11 +116,24 @@ EOF
     fi
 
     # Create tables as postgres user
-    create_tables "sudo -u postgres psql -d $DB_NAME"
+    create_tables "sudo -u postgres $PSQL -d $DB_NAME"
 
-    # Update pg_hba.conf to allow password authentication
-    PG_HBA_CONF="$PGDATA/pg_hba.conf"
-    if [ -f "$PG_HBA_CONF" ]; then
+    # Try multiple possible locations for pg_hba.conf
+    PG_HBA_PATHS=(
+        "/var/lib/pgsql/14/data/pg_hba.conf"
+        "$(sudo -u postgres $PSQL -t -P format=unaligned -c 'SHOW hba_file' 2>/dev/null)"
+    )
+    
+    PG_HBA_CONF=""
+    for path in "${PG_HBA_PATHS[@]}"; do
+        if sudo test -f "$path"; then
+            PG_HBA_CONF="$path"
+            break
+        fi
+    done
+
+    if [ -n "$PG_HBA_CONF" ]; then
+        echo "Found pg_hba.conf at $PG_HBA_CONF"
         echo "Updating PostgreSQL authentication configuration..."
         # Backup the original file
         sudo cp "$PG_HBA_CONF" "${PG_HBA_CONF}.bak"
@@ -119,11 +143,13 @@ EOF
             sudo systemctl reload $PG_SERVICE
         fi
     else
-        echo "Warning: Could not find pg_hba.conf at $PG_HBA_CONF. You may need to configure authentication manually."
+        echo "Note: Could not find pg_hba.conf. If you experience connection issues, you may need to configure authentication manually."
+        echo "Typical locations checked:"
+        printf '%s\n' "${PG_HBA_PATHS[@]}"
     fi
 else
     # macOS: Standard operations
-    psql postgres <<EOF
+    $PSQL postgres <<EOF
 -- Create user if not exists
 DO \$\$
 BEGIN
@@ -142,7 +168,7 @@ GRANT ALL PRIVILEGES ON DATABASE $DB_NAME TO $DB_USER;
 EOF
 
     # Create tables
-    create_tables "psql -d $DB_NAME"
+    create_tables "$PSQL -d $DB_NAME"
 fi
 
 echo "Database setup completed successfully!"
