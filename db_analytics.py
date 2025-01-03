@@ -1,4 +1,5 @@
 import asyncio
+import argparse
 from sqlalchemy import select, func
 from main import AsyncSessionLocal, ConversationLog
 from datetime import datetime, timedelta
@@ -96,9 +97,18 @@ async def print_weekly_conversation_count():
             print(f"Error fetching weekly conversation count: {str(e)}")
 
 async def main():
-    # await print_all_rows()
-    await print_last_conversation()
-    await print_weekly_conversation_count()
+    parser = argparse.ArgumentParser(description='Database analytics tool for conversation logs')
+    parser.add_argument('mode', choices=['all', 'last', 'weekly'],
+                       help='Select analysis mode: all (print all rows), last (print last conversation), weekly (print weekly stats)')
+    
+    args = parser.parse_args()
+    
+    if args.mode == 'all':
+        await print_all_rows()
+    elif args.mode == 'last':
+        await print_last_conversation()
+    elif args.mode == 'weekly':
+        await print_weekly_conversation_count()
 
 if __name__ == "__main__":
     asyncio.run(main())
