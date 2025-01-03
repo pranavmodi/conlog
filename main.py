@@ -1,12 +1,13 @@
 from fastapi import FastAPI, HTTPException, Depends
 from pydantic import BaseModel
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import List, Optional
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from sqlalchemy.orm import sessionmaker, declarative_base
-from sqlalchemy import Column, Integer, String, DateTime, JSON, select
+from sqlalchemy import Column, Integer, String, DateTime, JSON, select, func
 import os
 from dotenv import load_dotenv
+from fastapi.responses import HTMLResponse
 
 # Load environment variables
 load_dotenv()
@@ -119,6 +120,71 @@ async def get_conversation_logs(
         result = await db.execute(query)
         logs = result.scalars().all()
         return logs
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/conversations/weekly-stats", response_class=HTMLResponse)
+async def get_weekly_stats(db: AsyncSession = Depends(get_db)):
+    try:
+        # Calculate the date 7 days ago
+        seven_days_ago = datetime.now() - timedelta(days=7)
+        
+        # Query to count conversations per day in the last 7 days
+        query = select(
+            func.date(ConversationLog.timestamp).label('date'),
+            func.count().label('count')
+        ).where(
+            ConversationLog.timestamp >= seven_days_ago
+        ).group_by(
+            func.date(ConversationLog.timestamp)
+        ).order_by(
+            func.date(ConversationLog.timestamp).desc()
+        )
+        
+        result = await db.execute(query)
+        daily_counts = result.all()
+        
+        # Generate HTML table
+        html_content = """
+        <html>
+            <head>
+                <style>
+                    table { border-collapse: collapse; width: 50%; margin: 20px auto; }
+                    th, td { padding: 12px; text-align: left; border: 1px solid #ddd; }
+                    th { background-color: #4CAF50; color: white; }
+                    tr:nth-child(even) { background-color: #f2f2f2; }
+                    tr:hover { background-color: #ddd; }
+                    .total { font-weight: bold; background-color: #e7e7e7; }
+                </style>
+            </head>
+            <body>
+                <table>
+                    <tr>
+                        <th>Date</th>
+                        <th>Conversation Count</th>
+                    </tr>
+        """
+        
+        total_count = 0
+        for date, count in daily_counts:
+            html_content += f"""
+                    <tr>
+                        <td>{date.strftime('%Y-%m-%d')}</td>
+                        <td>{count}</td>
+                    </tr>"""
+            total_count += count
+            
+        html_content += f"""
+                    <tr class="total">
+                        <td>Total</td>
+                        <td>{total_count}</td>
+                    </tr>
+                </table>
+            </body>
+        </html>
+        """
+        
+        return html_content
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
